@@ -64,8 +64,14 @@ def main():
 	argp.add_argument('-c', '--crm-resource', help='Corosync Resource name', dest='crm')
 	if 'netifaces' in sys.modules:
 		argp.add_argument('-i', '--ip', help='IP address', dest='ip')
+	argp.add_argument('-H', '--hostname', help='Hostname to consider as this node (default: system hostname)', dest='hostname')
 	argp.add_argument('plugin', help='Nagios Plugin Name', nargs=argparse.REMAINDER)
 	args = argp.parse_args()
+
+	# Allow overriding the detected hostname from the command line
+	global hostname
+	if args.hostname:
+		hostname = args.hostname
 
 	if len(args.plugin) < 1:
 		print("UNKNOWN: Need at least one plugin to be called")
