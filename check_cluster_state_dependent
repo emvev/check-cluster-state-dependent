@@ -102,6 +102,7 @@ def main():
 		argp.add_argument('-i', '--ip', help='IP address', dest='ip')
 	argp.add_argument('-H', '--hostname', help='Hostname to consider as this node (default: system hostname)', dest='hostname')
 	argp.add_argument('-m', '--ms', help='Master/Slave resource mode; only run plugin if this node is Master', dest='ms', action='store_true')
+	argp.add_argument('--invert', help='Invert check logic; run plugin when resource/IP is NOT active', dest='invert', action='store_true')
 	argp.add_argument('plugin', help='Nagios Plugin Name', nargs=argparse.REMAINDER)
 	args = argp.parse_args()
 
@@ -125,21 +126,29 @@ def main():
 		sys.exit(STATE_UNKN)
 	elif args.crm is not None:
 		if os.path.exists(CRM_RESOURCE_PATH) and os.access(CRM_RESOURCE_PATH, os.X_OK):
-			if cluster_is_active(args.crm, ms=bool(getattr(args, 'ms', False))):
+			is_active = cluster_is_active(args.crm, ms=bool(getattr(args, 'ms', False)))
+			run_plugin = (not is_active) if getattr(args, 'invert', False) else is_active
+			if run_plugin:
 				execute_plugin(args.plugin)
 			else:
+				# Parameterized output: choose state and verb once, then print
 				if getattr(args, 'ms', False):
-					print("OK: Cluster resource %s is not master on host %s" % (args.crm, hostname))
+					state_word = 'master'
 				else:
-					print("OK: Cluster resource %s is not active on host %s" % (args.crm, hostname))
+					state_word = 'active'
+				verb = 'is' if getattr(args, 'invert', False) else 'is not'
+				print("OK: Cluster resource %s %s %s on host %s" % (args.crm, verb, state_word, hostname))
 		else:
 			print("UNKNOWN: crm resource binary %s is not callable" % CRM_RESOURCE_PATH)
 			sys.exit(STATE_UNKN)
 	elif args.ip is not None:
-		if args.ip in ip_addresses():
+		is_present = args.ip in ip_addresses()
+		run_plugin = (not is_present) if getattr(args, 'invert', False) else is_present
+		if run_plugin:
 			execute_plugin(args.plugin)
 		else:
-			print("OK: Cluster IP %s is not active on host %s" % (args.ip, hostname))
+			verb = 'is' if getattr(args, 'invert', False) else 'is not'
+			print("OK: Cluster IP %s %s active on host %s" % (args.ip, verb, hostname))
 			sys.exit(STATE_OK)
 
 
