@@ -17,7 +17,7 @@ Name:           %{srcname}
 Version:        %{version}
 Release:        %{release}%{?dist}
 Summary:        %{sum}
-License:        proprietary
+License:        Apache-2.0
 Source0:        %{srcname}-%{version}.tar.gz
 
 BuildArch:      noarch
