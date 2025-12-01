@@ -5,6 +5,7 @@ import argparse
 import os
 import socket
 import subprocess
+import shutil
 import sys
 import logging
 
@@ -22,7 +23,21 @@ STATE_CRIT = 2
 STATE_UNKN = 3
 
 CRM_PATH = '/usr/sbin/crm_resource'
-hostname = socket.gethostname()
+CRM_NODE_PATH = shutil.which('crm_node')
+
+def detect_hostname():
+	"""Return cluster node name preferably from `crm_node -n`, fallback to socket.gethostname()."""
+	if CRM_NODE_PATH:
+		try:
+			out = subprocess.check_output([CRM_NODE_PATH, '-n'], stderr=subprocess.STDOUT)
+			hn = out.decode('utf8').strip()
+			if hn:
+				return hn
+		except (subprocess.CalledProcessError, OSError) as ex:
+			log.debug('crm_node detection failed: %s', ex)
+	return socket.gethostname()
+
+hostname = detect_hostname()
 
 def ip_addresses():
 	ip_list = []
