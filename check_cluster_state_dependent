@@ -50,14 +50,35 @@ def ip_addresses():
 				ip_list.append(link["addr"])
 	return ip_list
 
-def cluster_is_active(resource):
-	"""Check if given resource is running on this node
+def cluster_is_active(resource, ms=False):
+	"""Check if given resource is running on this node.
+	If `ms` is True, treat the resource as a master/slave and only return True
+	if this node is the Master for that resource.
 	@param resource: CRM Resource name
 	@type resource: str
+	@param ms: master/slave mode
+	@type ms: bool
 	@rtype: bool
 	"""
-	ret = subprocess.call("%s -W -r %s | grep %s" % (CRM_RESOURCE_PATH, resource, hostname ), shell=True, stdout=subprocess.PIPE)
-	return ret == 0
+	if not CRM_RESOURCE_PATH:
+		return False
+	try:
+		out = subprocess.check_output([CRM_RESOURCE_PATH, '-W', '-r', resource], stderr=subprocess.STDOUT)
+		text = out.decode('utf8')
+	except (subprocess.CalledProcessError, OSError) as ex:
+		log.debug('crm_resource detection failed: %s', ex)
+		return False
+
+	if ms:
+		# For master/slave resources, look for a line that mentions this hostname
+		# and the master role. Use case-insensitive match for 'master'.
+		for line in text.splitlines():
+			if hostname in line and 'master' in line.lower():
+				return True
+		return False
+	else:
+		# Non-MS: just check whether the hostname appears in the crm_resource output
+		return hostname in text
 
 def execute_plugin(plugin_params):
 	plugin = plugin_params[0]
@@ -80,8 +101,15 @@ def main():
 	if 'netifaces' in sys.modules:
 		argp.add_argument('-i', '--ip', help='IP address', dest='ip')
 	argp.add_argument('-H', '--hostname', help='Hostname to consider as this node (default: system hostname)', dest='hostname')
+	argp.add_argument('-m', '--ms', help='Master/Slave resource mode; only run plugin if this node is Master', dest='ms', action='store_true')
 	argp.add_argument('plugin', help='Nagios Plugin Name', nargs=argparse.REMAINDER)
 	args = argp.parse_args()
+
+	# If the user passed a leading '--' to separate options from the plugin,
+	# argparse.REMAINDER will include it. Strip it so the plugin name is the
+	# first element.
+	if args.plugin and args.plugin[0] == '--':
+		args.plugin = args.plugin[1:]
 
 	# Allow overriding the detected hostname from the command line
 	global hostname
@@ -97,10 +125,13 @@ def main():
 		sys.exit(STATE_UNKN)
 	elif args.crm is not None:
 		if os.path.exists(CRM_RESOURCE_PATH) and os.access(CRM_RESOURCE_PATH, os.X_OK):
-			if cluster_is_active(args.crm):
+			if cluster_is_active(args.crm, ms=bool(getattr(args, 'ms', False))):
 				execute_plugin(args.plugin)
 			else:
-				print("OK: Cluster resource %s is not active on host %s" % (args.crm, hostname))
+				if getattr(args, 'ms', False):
+					print("OK: Cluster resource %s is not master on host %s" % (args.crm, hostname))
+				else:
+					print("OK: Cluster resource %s is not active on host %s" % (args.crm, hostname))
 		else:
 			print("UNKNOWN: crm resource binary %s is not callable" % CRM_RESOURCE_PATH)
 			sys.exit(STATE_UNKN)
