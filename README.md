@@ -21,7 +21,6 @@ Be sure to also monitor your cluster state by some other mechanism.
 # Dependencies
 
  * Python 2.7
- * netifaces (optional for ip check)
 
 # Installation
 
@@ -37,13 +36,16 @@ to the script. The nagios plugin to be called including multiple parameters can 
 Example using a crm resource:
 
 ```
-/usr/bin/check_cluster_state_dependent -r p_radius  /usr/lib/nagios/plugins/check_ping -H 127.0.0.1 -w 100,10% -c 200,20%    
+/usr/bin/check_cluster_state_dependent --crm-resource virt-ip /usr/lib/nagios/plugins/check_service_uptime --service svc-foo
+/usr/bin/check_cluster_state_dependent --crm-resource virt-ip --invert /usr/lib/nagios/plugins/check_service_uptime --service svc-bar
 ```
 
-Example using a ip (with netifaces module present):
+This will run the `svn-foo` service uptime check only when `virt-ip` is active on the node, however it will run `svc-bar` service uptime check only when `virt-ip` is not active on the node.
 
+Example using a master slave crm resource:
 
 ```
-/usr/bin/check_cluster_state_dependent -i 127.0.0.1  /usr/lib/nagios/plugins/check_ping -H 127.0.0.1 -w 100,10% -c 200,20%    
+/usr/bin/check_cluster_state_dependent -c ms-mydb --ms /usr/lib/nagios/plugins/check_postgres --action=replication_slots --host=127.0.0.1 --dbname=mydb --dbuser=monitor --warning=1 --critical=1
 ```
 
+This will run the `check_postgres` plugin only when the ms-mydb resource role is master.
