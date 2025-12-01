@@ -12,10 +12,6 @@ import logging
 logging.basicConfig()
 log = logging.getLogger(__file__)
 
-try:
-	import netifaces
-except ImportError as e:
-	log.debug('Unable to import netifaces, disabling support for check with IP. Error: %s' % e)
 
 STATE_OK = 0
 STATE_WARN = 1
@@ -39,16 +35,6 @@ def detect_hostname():
 
 hostname = detect_hostname()
 
-def ip_addresses():
-	ip_list = []
-	for interface in netifaces.interfaces():
-		if netifaces.AF_INET in netifaces.ifaddresses(interface):
-			for link in netifaces.ifaddresses(interface)[netifaces.AF_INET]:
-				ip_list.append(link["addr"])
-		if netifaces.AF_INET6 in netifaces.ifaddresses(interface):
-			for link in netifaces.ifaddresses(interface)[netifaces.AF_INET6]:
-				ip_list.append(link["addr"])
-	return ip_list
 
 def cluster_is_active(resource, ms=False):
 	"""Check if given resource is running on this node.
@@ -98,11 +84,9 @@ def execute_plugin(plugin_params):
 def main():
 	argp = argparse.ArgumentParser()
 	argp.add_argument('-c', '--crm-resource', help='Corosync Resource name', dest='crm')
-	if 'netifaces' in sys.modules:
-		argp.add_argument('-i', '--ip', help='IP address', dest='ip')
 	argp.add_argument('-H', '--hostname', help='Hostname to consider as this node (default: system hostname)', dest='hostname')
 	argp.add_argument('-m', '--ms', help='Master/Slave resource mode; only run plugin if this node is Master', dest='ms', action='store_true')
-	argp.add_argument('--invert', help='Invert check logic; run plugin when resource/IP is NOT active', dest='invert', action='store_true')
+	argp.add_argument('--invert', help='Invert check logic; run plugin when resource is NOT active', dest='invert', action='store_true')
 	argp.add_argument('plugin', help='Nagios Plugin Name', nargs=argparse.REMAINDER)
 	args = argp.parse_args()
 
@@ -121,10 +105,10 @@ def main():
 		print("UNKNOWN: Need at least one plugin to be called")
 		sys.exit(STATE_UNKN)
 
-	if args.crm is None and args.ip is None:
+	if args.crm is None:
 		print("UNKNOWN: Need at least one check parameter")
 		sys.exit(STATE_UNKN)
-	elif args.crm is not None:
+	if args.crm is not None:
 		if os.path.exists(CRM_RESOURCE_PATH) and os.access(CRM_RESOURCE_PATH, os.X_OK):
 			is_active = cluster_is_active(args.crm, ms=bool(getattr(args, 'ms', False)))
 			run_plugin = (not is_active) if getattr(args, 'invert', False) else is_active
@@ -141,16 +125,6 @@ def main():
 		else:
 			print("UNKNOWN: crm resource binary %s is not callable" % CRM_RESOURCE_PATH)
 			sys.exit(STATE_UNKN)
-	elif args.ip is not None:
-		is_present = args.ip in ip_addresses()
-		run_plugin = (not is_present) if getattr(args, 'invert', False) else is_present
-		if run_plugin:
-			execute_plugin(args.plugin)
-		else:
-			verb = 'is' if getattr(args, 'invert', False) else 'is not'
-			print("OK: Cluster IP %s %s active on host %s" % (args.ip, verb, hostname))
-			sys.exit(STATE_OK)
-
 
 if __name__ == '__main__':
 	main()
