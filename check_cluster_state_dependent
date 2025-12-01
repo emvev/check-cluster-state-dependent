@@ -22,7 +22,7 @@ STATE_WARN = 1
 STATE_CRIT = 2
 STATE_UNKN = 3
 
-CRM_PATH = '/usr/sbin/crm_resource'
+CRM_RESOURCE_PATH = shutil.which('crm_resource')
 CRM_NODE_PATH = shutil.which('crm_node')
 
 def detect_hostname():
@@ -56,7 +56,7 @@ def cluster_is_active(resource):
 	@type resource: str
 	@rtype: bool
 	"""
-	ret = subprocess.call("%s -W -r %s | grep %s" % (CRM_PATH, resource, hostname ), shell=True, stdout=subprocess.PIPE)
+	ret = subprocess.call("%s -W -r %s | grep %s" % (CRM_RESOURCE_PATH, resource, hostname ), shell=True, stdout=subprocess.PIPE)
 	return ret == 0
 
 def execute_plugin(plugin_params):
@@ -96,13 +96,13 @@ def main():
 		print("UNKNOWN: Need at least one check parameter")
 		sys.exit(STATE_UNKN)
 	elif args.crm is not None:
-		if os.path.exists(CRM_PATH) and os.access(CRM_PATH, os.X_OK):
+		if os.path.exists(CRM_RESOURCE_PATH) and os.access(CRM_RESOURCE_PATH, os.X_OK):
 			if cluster_is_active(args.crm):
 				execute_plugin(args.plugin)
 			else:
 				print("OK: Cluster resource %s is not active on host %s" % (args.crm, hostname))
 		else:
-			print("UNKNOWN: crm resource binary %s is not callable" % CRM_PATH)
+			print("UNKNOWN: crm resource binary %s is not callable" % CRM_RESOURCE_PATH)
 			sys.exit(STATE_UNKN)
 	elif args.ip is not None:
 		if args.ip in ip_addresses():
