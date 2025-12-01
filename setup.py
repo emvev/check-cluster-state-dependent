@@ -10,5 +10,5 @@ setuptools.setup(
 	author="Cygnus Networks GmbH",
 	author_email="info@cygnusnetworks.de",
 	scripts=['check_cluster_state_dependent'],
-	install_requires=["netifaces"],
+	install_requires=[],
 )

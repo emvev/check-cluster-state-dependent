@@ -8,6 +8,7 @@
 %endif
 
 %define srcname check-cluster-state-dependent
+%define project check_cluster_state_dependent
 %define version 0.13
 %define release 1
 %define sum Cygnus Networks GmbH %{srcname} package
@@ -24,7 +25,7 @@ BuildRequires:  python2-devel, python-setuptools
 %if 0%{?with_check}
 BuildRequires:  pytest
 %endif # with_check
-Requires:       python-setuptools, python-netifaces
+Requires:       python-setuptools
 
 %{?python_provide:%python_provide python-%{project}}
 
