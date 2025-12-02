@@ -33,9 +33,6 @@ def detect_hostname():
 			log.debug('crm_node detection failed: %s', ex)
 	return socket.gethostname()
 
-hostname = detect_hostname()
-
-
 def cluster_is_active(resource, ms=False):
 	"""Check if given resource is running on this node.
 	If `ms` is True, treat the resource as a master/slave and only return True
@@ -96,10 +93,12 @@ def main():
 	if args.plugin and args.plugin[0] == '--':
 		args.plugin = args.plugin[1:]
 
-	# Allow overriding the detected hostname from the command line
+	# Only detect hostname if the user did not supply one on the CLI
 	global hostname
 	if args.hostname:
 		hostname = args.hostname
+	else:
+		hostname = detect_hostname()
 
 	if len(args.plugin) < 1:
 		print("UNKNOWN: Need at least one plugin to be called")
